@@ -181,6 +181,25 @@ WpaCLI.prototype.getScanResults = function (cb) {
         cb.call(this, null, stations);
     });
 };
+WpaCLI.prototype.listNetworks = function (cb) {
+    this.ignoreAck = true;
+    this.request('LIST_NETWORKS', function (msg) {
+        var networks = [];
+        var lines = msg.toString().split('\n');
+
+        for (var i = 1; i < lines.length; i++) {
+            var lineSplit = lines[i].split('\t');
+            networks.push({
+                netId: lineSplit[0],
+                bssid: lineSplit[2],
+                enabled: lineSplit[3] !== "[DISABLED]",
+                current: lineSplit[3] === "[CURRENT]",
+                ssid: lineSplit[1]
+            });
+        }
+        cb.call(this, null, networks);
+    });
+};
 
 WpaCLI.prototype.scan = function (cb) {
     this.ignoreAck = true;
