@@ -73,19 +73,21 @@ WpaCLI.prototype.listen = function (clientPath, cb) {
         .bind(clientPath)
 };
 
-WpaCLI.prototype.request = function (req, cb) {
+WpaCLI.prototype.request = function (req, cb, ignoreAck = false) {
+    console.log('WpaCLI', req);
     this._handleReply = cb;
+    this.ignoreAck = ignoreAck;
     this.client.send(new Buffer(req));
 };
 
 WpaCLI.prototype._onMessage = function (msg) {
     var handleReply;
+    console.log('WpaCLI', '_onMessage', this.ignoreAck, msg.toString());
     this.emit('rawMsg', msg);
 
     if (msg.length > 3 && msg[0] === 60 && msg[2] === 62) {
         this._onCtrlEvent(msg[1] - 48, msg.slice(3))
     } else if (this.ignoreAck && msg.toString().substr(0, 3).indexOf('OK') != -1) { // This is just an ack message, ignoring it...
-        this.ignoreAck = false;
     } else if ((handleReply = this._handleReply)) {
         delete this._handleReply;
         handleReply.call(this, msg.toString().trim())
@@ -130,7 +132,6 @@ WpaCLI.prototype.detach = function (cb) {
 };
 
 WpaCLI.prototype.getStatus = function (cb) {
-    this.ignoreAck = true;
     this.request('STATUS', function (msg) {
         var status = {};
         var lines = msg.toString().split('\n');
@@ -146,7 +147,7 @@ WpaCLI.prototype.getStatus = function (cb) {
             cb.call(this, null, status);
         else
             cb.call(this, 'unable to get status');
-    });
+    }, true);
 };
 
 function APStation(bssid, frequency, signal, encryption, ssid) {
@@ -168,7 +169,6 @@ function APStation(bssid, frequency, signal, encryption, ssid) {
 }
 
 WpaCLI.prototype.getScanResults = function (cb) {
-    this.ignoreAck = true;
     this.request('SCAN_RESULTS', function (msg) {
         var stations = [];
         var lines = msg.toString().split('\n');
@@ -179,10 +179,9 @@ WpaCLI.prototype.getScanResults = function (cb) {
         }
 
         cb.call(this, null, stations);
-    });
+    }, true);
 };
 WpaCLI.prototype.listNetworks = function (cb) {
-    this.ignoreAck = true;
     this.request('LIST_NETWORKS', function (msg) {
         var networks = [];
         var lines = msg.toString().split('\n');
@@ -198,12 +197,11 @@ WpaCLI.prototype.listNetworks = function (cb) {
             });
         }
         cb.call(this, null, networks);
-    });
+    }, true);
 };
 
 WpaCLI.prototype.scan = function (cb) {
-    this.ignoreAck = true;
-    this.request('SCAN');
+    this.request('SCAN', null, true);
 
     this.once('CTRL-EVENT-SCAN-RESULTS', cb);
 };
@@ -214,7 +212,6 @@ WpaCLI.prototype.addNetwork = function (params, cb) {
         return false;
     }
 
-    this.ignoreAck = true;
     var done = false;
 
     this.request('ADD_NETWORK', function (network_id) {
@@ -222,7 +219,7 @@ WpaCLI.prototype.addNetwork = function (params, cb) {
             if (done) {
                 break;
             } else if (params.hasOwnProperty(key)) {
-                this.request('SET_NETWORK ' + network_id + ' ' + key + ' ' + params[key] + '', function (status) {
+                this.request('SET_NETWORK ' + network_id + ' ' + key + ' "' + params[key] + '"', function (status) {
                     if (status != 'OK') {
                         if (typeof cb === 'function')
                             cb.call(this, 'Param error');
@@ -234,7 +231,7 @@ WpaCLI.prototype.addNetwork = function (params, cb) {
 
         if (!done && typeof cb === 'function')
             cb.call(this, null, network_id);
-    });
+    }, true);
 };
 
 WpaCLI.prototype.removeNetwork = function (netId, cb) {
