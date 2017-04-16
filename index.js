@@ -74,7 +74,6 @@ WpaCLI.prototype.listen = function (clientPath, cb) {
 };
 
 WpaCLI.prototype.request = function (req, cb, ignoreAck = false) {
-    console.log('WpaCLI', req);
     this._handleReply = cb;
     this.ignoreAck = ignoreAck;
     this.client.send(new Buffer(req));
@@ -82,7 +81,6 @@ WpaCLI.prototype.request = function (req, cb, ignoreAck = false) {
 
 WpaCLI.prototype._onMessage = function (msg) {
     var handleReply;
-    console.log('WpaCLI', '_onMessage', this.ignoreAck, msg.toString());
     this.emit('rawMsg', msg);
 
     if (msg.length > 3 && msg[0] === 60 && msg[2] === 62) {
