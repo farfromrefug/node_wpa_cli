@@ -160,9 +160,9 @@ function APStation(bssid, frequency, signal, encryption, ssid) {
 
     return {
         bssid: bssid,
-        frequency: frequency,
+        frequency: parseInt(frequency) / 1000,
         encryption: encArray,
-        signal: signal,
+        signal: parseInt(signal),
         ssid: ssid
     };
 }
