@@ -15,16 +15,17 @@ function WpaCLI(ifname) {
 
     EventEmitter.call(this);
     this.ifname = ifname
+    this._bindedOnMessage = this._onMessage.bind(this);
+    this._bindedOnError = this._onError.bind(this);
 }
 
 WpaCLI.prototype.connect = function (callback) {
     var serverPath = '/var/run/wpa_supplicant/' + this.ifname;
     var clientPath = '/tmp/wpa_ctrl' + Math.random().toString(36).substr(1);
-    var error = this._onError.bind(this);
 
     this.client = unix.createSocket('unix_dgram')
-        .on('message', this._onMessage.bind(this))
-        .on('error', error);
+        .on('message', this._bindedOnMessage )
+        .on('error', this._bindedOnError )
 
     // I should probably rewrite this using promises..
     this._connect(serverPath, function (err) {
@@ -229,6 +230,43 @@ WpaCLI.prototype.disableNetwork = function (netId, cb) {
 WpaCLI.prototype.enableNetwork = function (netId, cb) {
     this.request('ENABLE_NETWORK ' + netId, cb);
 };
+
+WpaCLI.prototype._disconnect = function( cb ){
+    var done = function (err) {
+        console.log( "call close callback" );
+        this.client.removeListener('close', done);
+        delete this._handleError;
+        cb.call(this, err)
+    }.bind(this);
+
+    this._handleError = done;
+    this.client.once('close', done)
+        .close()
+    //Call directly because only error event emit from unix-dgram
+    done( null );
+}
+
+WpaCLI.prototype.disconnect = function( callback ){
+
+    var self = this;
+   
+    this.ignoreAck = false; 
+    this.detach( function(err){
+        if (err) return error('unable to dettach from events');
+        console.log( "call _disconnect" );
+        this._disconnect( function (err){
+            if (err) return error('unable to disconnect from interface');
+            
+            self.client.removeListener('message', this._bindedOnMessage );
+            self.client.removeListener('error', this._bindedOnError );
+            self.client = null;
+            
+            this.emit('close');
+            if (typeof callback === 'function' )
+                callback();
+        });
+    });
+}
 
 module.exports = WpaCLI;
 
