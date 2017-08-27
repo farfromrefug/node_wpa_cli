@@ -102,6 +102,16 @@ WpaCLI.prototype._onCtrlEvent = function (level, msg) {
     this.emit('event-' + level, messageName, messageParts);
 };
 
+WpaCLI.prototype.saveConfig = function (cb) {
+    this.ignoreAck = false;
+    this.request('SAVE_CONFIG', function (msg) {
+        if (msg === 'OK')
+            cb.call(this, null);
+        else
+            cb.call(this, msg);
+    });
+};
+
 WpaCLI.prototype.setLevel = function (level, cb) {
     this.request('LEVEL ' + level, function (msg) {
         if (msg === 'OK')
@@ -129,23 +139,34 @@ WpaCLI.prototype.detach = function (cb) {
     })
 };
 
+function _parseStatus (msg, cb) {
+    var status = {};
+    var lines = msg.toString().split('\n');
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var j = line.indexOf('=');
+        if (j > 0) {
+            status[line.substr(0, j)] = line.substr(j + 1)
+        }
+    }
+
+    if (status.wpa_state)
+        cb.call(this, null, status);
+    else
+        cb.call(this, 'unable to get status');
+}
+
+WpaCLI.prototype.getVerboseStatus = function (cb) {
+    this.ignoreAck = true;
+    this.request('STATUS-VERBOSE', function (msg) {
+        _parseStatus(msg, cb);
+    });
+};
+
 WpaCLI.prototype.getStatus = function (cb) {
     this.ignoreAck = true;
     this.request('STATUS', function (msg) {
-        var status = {};
-        var lines = msg.toString().split('\n');
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            var j = line.indexOf('=');
-            if (j > 0) {
-                status[line.substr(0, j)] = line.substr(j + 1)
-            }
-        }
-
-        if (status.wpa_state)
-            cb.call(this, null, status);
-        else
-            cb.call(this, 'unable to get status');
+        _parseStatus(msg, cb);
     });
 };
 
@@ -189,6 +210,23 @@ WpaCLI.prototype.scan = function (cb) {
     this.once('CTRL-EVENT-SCAN-RESULTS', cb);
 };
 
+WpaCLI.prototype.setNetwork = function (network_id, params, cb) {
+    for (var key in params) {
+        if (params.hasOwnProperty(key)) {
+            this.request('SET_NETWORK ' + network_id + ' ' + key + ' "' + params[key] + '"', function (status) {
+                if (status != 'OK') {
+                    if (typeof cb === 'function')
+                        cb.call(this, 'Param error');
+                }
+
+            });
+        }
+    }
+
+    if (typeof cb === 'function')
+        cb.call(this, null);
+};
+
 WpaCLI.prototype.addNetwork = function (params, cb) {
     if (typeof params !== 'object') {
         cb.call(this, 'wrong params type');
@@ -196,25 +234,12 @@ WpaCLI.prototype.addNetwork = function (params, cb) {
     }
 
     this.ignoreAck = true;
-    var done = false;
 
     this.request('ADD_NETWORK', function (network_id) {
-        for (var key in params)
-            if (done) {
-                break;
-            } else if (params.hasOwnProperty(key)) {
-                this.request('SET_NETWORK ' + network_id + ' ' + key + ' "' + params[key] + '"', function (status) {
-                    if (status != 'OK') {
-                        if (typeof cb === 'function')
-                            cb.call(this, 'Param error');
-                        done = true;
-                    }
-
-                });
-            }
-
-        if (!done && typeof cb === 'function')
-            cb.call(this, null, network_id);
+        this.setNetwork(network_id, params, function () {
+            if (typeof cb === 'function')
+                cb.call(this, null, network_id);
+        });
     });
 };
 
