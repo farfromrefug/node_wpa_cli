@@ -256,9 +256,8 @@ WpaCLI.prototype.enableNetwork = function (netId, cb) {
     this.request('ENABLE_NETWORK ' + netId, cb);
 };
 
-WpaCLI.prototype._disconnect = function( cb ){
+WpaCLI.prototype._close = function( cb ){
     var done = function (err) {
-        console.log( "call close callback" );
         this.client.removeListener('close', done);
         delete this._handleError;
         cb.call(this, err)
@@ -271,15 +270,14 @@ WpaCLI.prototype._disconnect = function( cb ){
     done( null );
 }
 
-WpaCLI.prototype.disconnect = function( callback ){
+WpaCLI.prototype.close = function( callback ){
 
     var self = this;
    
     this.ignoreAck = false; 
     this.detach( function(err){
         if (err) return error('unable to dettach from events');
-        console.log( "call _disconnect" );
-        this._disconnect( function (err){
+        this._close( function (err){
             if (err) return error('unable to disconnect from interface');
             
             self.client.removeListener('message', this._bindedOnMessage );
