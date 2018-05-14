@@ -299,17 +299,29 @@ WpaCLI.prototype.close = function( callback ){
    
     this.ignoreAck = false; 
     this.detach( function(err){
-        if (err) return error('unable to dettach from events');
+        if (err) {
+            if (typeof callback === 'function' ){
+                callback(err);
+            }
+            return error('unable to dettach from events');
+        }
         this._close( function (err){
-            if (err) return error('unable to disconnect from interface');
+            if (err) 
+            {
+                if (typeof callback === 'function' ){
+                    callback(err);
+                }
+                return error('unable to disconnect from interface');
+            }
             
             self.client.removeListener('message', this._bindedOnMessage );
             self.client.removeListener('error', this._bindedOnError );
             self.client = null;
             
             this.emit('close');
-            if (typeof callback === 'function' )
+            if (typeof callback === 'function' ){
                 callback();
+            }
         });
     });
 }
