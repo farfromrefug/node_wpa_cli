@@ -275,10 +275,6 @@ WpaCLI.prototype.selectNetwork = function (netId, cb) {
     this.request('SELECT_NETWORK ' + netId, cb);
 };
 
-WpaCLI.prototype.saveConfig = function (cb) {
-    this.request('SAVE_CONFIG', cb);
-};
-
 WpaCLI.prototype._close = function( cb ){
     var done = function (err) {
         this.client.removeListener('close', done);
