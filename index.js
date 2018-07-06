@@ -29,11 +29,11 @@ WpaCLI.prototype.connect = function (callback) {
 
     // I should probably rewrite this using promises..
     this._connect(serverPath, function (err) {
-        if (err) return error('unable to connect to interface');
+        if (err) return new Error('unable to connect to interface');
         this.listen(clientPath, function (err) {
-            if (err) return error('unable to listen for events');
+            if (err) return new Error('unable to listen for events');
             this.attach(function (err) {
-                if (err) return error('unable to attach to events');
+                if (err) return new Error('unable to attach to events');
 
                 this.emit('connect');
                 if (typeof callback === 'function')
